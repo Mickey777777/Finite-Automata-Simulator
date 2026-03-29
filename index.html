@@ -8,12 +8,16 @@
         :root {
             --bg: #0a0a0f;
             --surface: #111118;
+            --surface2: #16161f;
             --border: #1e1e2e;
             --accent: #7c6af7;
+            --accent-dim: rgba(124, 106, 247, 0.12);
             --text: #e8e8f0;
             --muted: #5a5a7a;
+            --green: #3ecf8e;
+            --red: #f76a6a;
         }
-        
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -22,7 +26,7 @@
 
         body {
             display: grid;
-            grid-template-columns: 360px 1fr;
+            grid-template-columns: 380px 1fr;
             grid-template-rows: auto 1fr;
             height: 100vh;
             font-family: 'JetBrains Mono', monospace;
@@ -34,7 +38,7 @@
             grid-column: 1 / -1;
             background: var(--surface);
             border-bottom: 1px solid var(--border);
-            padding: 16px 24px;
+            padding: 14px 24px;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -59,13 +63,65 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            gap: 0;
+        }
+
+        .panel::-webkit-scrollbar {
+            width: 4px;
+        }
+        .panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .panel::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .step-group {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding-bottom: 18px;
+            margin-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .step-group:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step-num {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--accent-dim);
+            color: var(--accent);
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .step-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text);
         }
 
         .section {
             display: flex;
             flex-direction: column;
-            gap: 6px;
-            margin-bottom: 20px;
+            gap: 5px;
         }
 
         label {
@@ -75,40 +131,61 @@
             text-transform: uppercase;
         }
 
+        .hint {
+            font-size: 0.6rem;
+            color: var(--muted);
+            opacity: 0.7;
+            letter-spacing: 0;
+            text-transform: none;
+        }
+
         input {
             background: var(--bg);
             border: 1px solid var(--border);
             color: var(--text);
-            padding: 8px 10px;
-            border-radius: 6px;
+            padding: 10px 12px;
+            border-radius: 8px;
             font-size: 0.8rem;
             font-family: 'JetBrains Mono', monospace;
             outline: none;
-            transition: border-color 0.2s;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         input:focus {
             border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
+        }
+
+        input::placeholder {
+            color: #2e2e45;
         }
 
         button {
             width: 100%;
-            padding: 10px;
+            padding: 11px;
             background: var(--accent);
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             font-size: 0.8rem;
             font-family: 'JetBrains Mono', monospace;
             font-weight: 600;
             cursor: pointer;
-            margin-bottom: 20px;
             letter-spacing: 0.05em;
-            transition: background 0.15s;
+            transition: background 0.15s, transform 0.1s;
         }
 
         button:hover {
             background: #6a58e0;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-build {
+            margin-top: 10px;
+            background: var(--accent);
         }
 
         .sim-row {
@@ -122,14 +199,39 @@
 
         .sim-row button {
             width: auto;
-            padding: 8px 14px;
-            margin-bottom: 0;
+            padding: 10px 18px;
         }
 
         .canvas-wrap {
             position: relative;
             overflow: hidden;
             background: var(--bg);
+            background-image: radial-gradient(circle, #1a1a2a 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        .canvas-hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--muted);
+            opacity: 0.5;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .canvas-hint-icon {
+            font-size: 2.4rem;
+            margin-bottom: 10px;
+            opacity: 0.4;
+        }
+
+        .canvas-hint-text {
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1.6;
         }
 
         #dfa-canvas {
@@ -141,14 +243,18 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.78rem;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
         }
 
         #delta-table th {
             background: var(--bg);
             color: var(--accent);
-            padding: 6px 10px;
+            padding: 8px 10px;
             border-bottom: 1px solid var(--border);
             text-align: center;
+            font-weight: 600;
         }
 
         #delta-table td {
@@ -156,24 +262,69 @@
             border-bottom: 1px solid #151520;
         }
 
+        #delta-table tr:last-child td {
+            border-bottom: none;
+        }
+
         #delta-table td:first-child {
             color: var(--muted);
             background: var(--bg);
             padding: 4px 10px;
             border-right: 1px solid var(--border);
+            font-weight: 600;
         }
 
         #delta-table td input {
             border: none;
             background: transparent;
             text-align: center;
-            padding: 6px;
+            padding: 8px 6px;
             width: 100%;
             color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            outline: none;
         }
 
         #delta-table td input:focus {
-            background: #1a1a2e;
+            background: var(--accent-dim);
+        }
+
+        .delta-empty {
+            text-align: center;
+            padding: 16px;
+            color: var(--muted);
+            opacity: 0.5;
+            font-size: 0.7rem;
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+        }
+
+        #result-box {
+            display: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+        }
+
+        #result-box.accept {
+            display: block;
+            border: 1px solid var(--green);
+            color: var(--green);
+            background: rgba(62, 207, 142, 0.08);
+        }
+
+        #result-box.reject {
+            display: block;
+            border: 1px solid var(--red);
+            color: var(--red);
+            background: rgba(247, 106, 106, 0.08);
+        }
+
+        #result-box .result-path {
+            margin-top: 6px;
+            font-size: 0.7rem;
+            color: var(--muted);
         }
 
         .mode-toggle {
@@ -189,7 +340,6 @@
         .mode-btn {
             width: auto;
             padding: 4px 16px;
-            margin-bottom: 0;
             border-radius: 6px;
             background: transparent;
             color: var(--muted);
@@ -214,48 +364,70 @@
     </header>
 
     <div class="panel">
-        <div class="section">
-            <label>Q - 상태집합</label>
-            <input id="inp-states" type="text" placeholder="q0, q1, q2 ...">
-        </div>
-
-        <div class="section">
-            <label>Σ — 알파벳</label>
-            <input id="inp-alpha" type="text" placeholder="0, 1">
-        </div>
-
-        <div class="section">
-            <label>q₀ — 시작 상태</label>
-            <input id="inp-start" type="text" placeholder="q0">
-        </div>
-
-        <div class="section">
-            <label>F - 수락 상태</label>
-            <input id="inp-accept" type="text" placeholder="q2">
-        </div>
-
-        <div class="section">
-            <label>δ — 전이 함수</label>
-            <table id="delta-table">
-                <thead><tr id=delta-head></tr></thead>
-                <tbody id="delta-body"></tbody>
-            </table>
-
-            <button id="btn-build">▶ DFA 시각화</button>
-        </div>
-
-        <div class="section">
-            <label>입력 문자열 시뮬레이션</label>
-            <div class="sim-row">
-                <input id="inp-str" type="text" placeholder="0110....">
-                <button id="btn-sim">실행</button>
+        <div class="step-group">
+            <div class="step-header">
+                <div class="step-num">1</div>
+                <div class="step-title">오토마타 정의</div>
+            </div>
+            <div class="section">
+                <label>Q — 상태집합</label>
+                <input id="inp-states" type="text" placeholder="q0, q1, q2">
+                <span class="hint">쉼표로 구분하여 상태를 입력하세요</span>
+            </div>
+            <div class="section">
+                <label>Σ — 알파벳</label>
+                <input id="inp-alpha" type="text" placeholder="0, 1">
+                <span class="hint">쉼표로 구분하여 심볼을 입력하세요</span>
+            </div>
+            <div class="section">
+                <label>q₀ — 시작 상태</label>
+                <input id="inp-start" type="text" placeholder="q0">
+            </div>
+            <div class="section">
+                <label>F — 수락 상태</label>
+                <input id="inp-accept" type="text" placeholder="q2">
+                <span class="hint">여러 개일 경우 쉼표로 구분</span>
             </div>
         </div>
 
-        <div id="result-box"></div>
+        <div class="step-group">
+            <div class="step-header">
+                <div class="step-num">2</div>
+                <div class="step-title">전이 함수 (δ)</div>
+            </div>
+            <div class="section">
+                <div id="delta-wrap">
+                    <div class="delta-empty">위에서 상태와 알파벳을 입력하면 테이블이 생성됩니다</div>
+                </div>
+                <table id="delta-table" style="display:none;">
+                    <thead><tr id="delta-head"></tr></thead>
+                    <tbody id="delta-body"></tbody>
+                </table>
+                <button id="btn-build" class="btn-build">DFA 시각화</button>
+            </div>
+        </div>
+
+        <div class="step-group">
+            <div class="step-header">
+                <div class="step-num">3</div>
+                <div class="step-title">시뮬레이션</div>
+            </div>
+            <div class="section">
+                <label>입력 문자열</label>
+                <div class="sim-row">
+                    <input id="inp-str" type="text" placeholder="0110">
+                    <button id="btn-sim">실행</button>
+                </div>
+            </div>
+            <div id="result-box"></div>
+        </div>
     </div>
 
     <div class="canvas-wrap">
+    <div id="canvas-placeholder" class="canvas-hint">
+        <div class="canvas-hint-icon">◎</div>
+        <div class="canvas-hint-text">좌측에서 DFA를 정의한 뒤<br>시각화 버튼을 눌러주세요</div>
+    </div>
     <svg id="dfa-canvas">
         <defs>
             <marker id="arrow" markerWidth="8" markerHeight="8"
@@ -316,6 +488,18 @@
             body.innerHTML = '';
 
             const states = parseList(document.getElementById('inp-states').value);
+            const table = document.getElementById('delta-table');
+            const wrap = document.getElementById('delta-wrap');
+
+            if (states.length === 0 || sigma.length === 0) {
+                table.style.display = 'none';
+                wrap.style.display = '';
+                return;
+            }
+
+            table.style.display = '';
+            wrap.style.display = 'none';
+
             states.forEach(s => {
                 const tr = document.createElement('tr');
                 tr.dataset.state = s;
@@ -344,6 +528,7 @@
             });
 
             simPath = [];
+            document.getElementById('canvas-placeholder').style.display = 'none';
             renderDFA();
         }
 
@@ -566,19 +751,10 @@
 
             const isAccept = accept.includes(current);
             const rb = document.getElementById('result-box');
-            rb.style.display = 'block';
-            rb.style.padding = '12px';
-            rb.style.borderRadius = '8px';
-            rb.style.fontFamily = 'JetBrains Mono, monospace';
-            rb.style.fontSize = '0.8rem';
-            rb.style.border = `1px solid ${isAccept ? '#3ecf8e' : '#f76a6a'}`;
-            rb.style.color = isAccept ? '#3ecf8e' : '#f76a6a';
-            rb.style.background = isAccept ? 'rgba(62,207,142,.08)' : 'rgba(247,106,106,.08)';
+            rb.className = isAccept ? 'accept' : 'reject';
             rb.innerHTML = `
-                <strong>${isAccept ? '✓ ACCEPT' : '✗ REJECT'}</strong>
-                <div style="margin-top:6px; font-size:0.7rem; color:#5a5a7a;">
-                    경로: ${simPath.join(' → ')}
-                </div>
+                <strong>${isAccept ? 'ACCEPT' : 'REJECT'}</strong>
+                <div class="result-path">경로: ${simPath.join(' → ')}</div>
             `;
 
             renderDFA(simPath);
