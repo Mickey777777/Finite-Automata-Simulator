@@ -454,6 +454,7 @@
 
     <script>
         let mode = 'dfa';
+        const nodeRadius = 28
 
         function switchMode(newMode) {
             mode = newMode;
@@ -563,7 +564,7 @@
                 const strokeColor = (state === start) ? '#7c6af7' : '#444';
 
                 const circle = makeSVG('circle', {
-                    cx: x, cy: y, r: 28,
+                    cx: x, cy: y, r: nodeRadius,
                     fill: '#111118', stroke: strokeColor,
                     'stroke-width': 2
                 });
@@ -580,7 +581,7 @@
 
                 if(accept.includes(state)){
                     const outerCircle = makeSVG('circle', {
-                        cx: x, cy: y, r: 35,
+                        cx: x, cy: y, r: nodeRadius + 7,
                         fill: 'none', stroke: '#3ecf8e', 'stroke-width': 1.5
                     });
                     g.appendChild(outerCircle);
@@ -612,7 +613,7 @@
             const states = parseList(document.getElementById('inp-states').value);
             const sigma  = getSymbols();
             const accept = parseList(document.getElementById('inp-accept').value);
-            const R = 28;
+            const R = nodeRadius;
 
             const delta = parseDelta();
 
@@ -625,8 +626,7 @@
                     } else {
                         arr = (delta[from] && delta[from][sym]) ? [delta[from][sym]] : [];
                     }
-                    var targets = arr;
-                    targets.forEach(to => {
+                    arr.forEach(to => {
                         if (!to) return;
                         const key = `${from}→${to}`;
                         if (!edgeMap[key]) edgeMap[key] = { from, to, labels: [] };
@@ -843,6 +843,7 @@
                     }
                 });
 
+                // 엡시론을 통해 갈 수 있는 정점들
                 const afterClosure = epsilonClosure(Array.from(nextRaw), delta);
                 nextRaw.forEach(function(s) {
                     const stack = [s];
