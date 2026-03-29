@@ -355,7 +355,7 @@
 
 <body>
     <header>
-        <h1>DFA Visualizer</h1>
+        <h1 id="header-title">DFA Visualizer</h1>
         <span>M = (Q, Σ, δ, q₀, F)</span>
         <div class="mode-toggle">
             <button id="btn-dfa" class="mode-btn active">DFA</button>
@@ -377,7 +377,7 @@
             <div class="section">
                 <label>Σ — 알파벳</label>
                 <input id="inp-alpha" type="text" placeholder="0, 1">
-                <span class="hint">쉼표로 구분하여 심볼을 입력하세요</span>
+                <span id="hint-alpha" class="hint">쉼표로 구분하여 심볼을 입력하세요</span>
             </div>
             <div class="section">
                 <label>q₀ — 시작 상태</label>
@@ -403,6 +403,7 @@
                     <thead><tr id="delta-head"></tr></thead>
                     <tbody id="delta-body"></tbody>
                 </table>
+                <span id="hint-delta" class="hint" style="display:none;">NFA: 셀에 쉼표로 여러 상태 입력 가능 (예: q1, q2)</span>
                 <button id="btn-build" class="btn-build">DFA 시각화</button>
             </div>
         </div>
@@ -453,21 +454,29 @@
 
     <script>
         let mode = 'dfa';
-        document.getElementById('btn-dfa').addEventListener('click', () => {
-            mode = 'dfa';
-            document.getElementById('btn-dfa').classList.add('active');
-            document.getElementById('btn-nfa').classList.remove('active');
-        });
 
-        document.getElementById('btn-nfa').addEventListener('click', () => {
-            mode = 'nfa';
-            document.getElementById('btn-nfa').classList.add('active');
-            document.getElementById('btn-dfa').classList.remove('active');
-            alert('NFA 모드는 준비 중입니다.');
-        });
+        function switchMode(newMode) {
+            mode = newMode;
+            document.getElementById('btn-dfa').classList.toggle('active', mode === 'dfa');
+            document.getElementById('btn-nfa').classList.toggle('active', mode === 'nfa');
+            document.getElementById('header-title').textContent = mode === 'dfa' ? 'DFA Visualizer' : 'NFA Visualizer';
+            document.getElementById('btn-build').textContent = mode === 'dfa' ? 'DFA 시각화' : 'NFA 시각화';
+            document.getElementById('hint-delta').style.display = mode === 'nfa' ? '' : 'none';
+            document.getElementById('hint-alpha').textContent = mode === 'nfa'
+                ? '쉼표로 구분 (λ-전이는 자동 추가됩니다)'
+                : '쉼표로 구분하여 심볼을 입력하세요';
+            document.getElementById('canvas-placeholder').querySelector('.canvas-hint-text').innerHTML =
+                mode === 'dfa'
+                    ? '좌측에서 DFA를 정의한 뒤<br>시각화 버튼을 눌러주세요'
+                    : '좌측에서 NFA를 정의한 뒤<br>시각화 버튼을 눌러주세요';
+            rebuildDeltaTable();
+        }
+
+        document.getElementById('btn-dfa').addEventListener('click', () => switchMode('dfa'));
+        document.getElementById('btn-nfa').addEventListener('click', () => switchMode('nfa'));
 
         let positions = {};
-        let simPath = [];
+        let simEdges = [];
 
         function parseList(str){
             let v = str;
@@ -477,21 +486,28 @@
             return v
         }
 
+        function getSymbols() {
+            const sigma = parseList(document.getElementById('inp-alpha').value);
+            if (mode === 'nfa') sigma.push('λ');
+            return sigma;
+        }
+
         function rebuildDeltaTable(){
             const head = document.getElementById('delta-head');
             head.innerHTML = '<th>δ</th>';
 
-            const sigma = parseList(document.getElementById('inp-alpha').value);
+            const sigma = getSymbols();
             head.innerHTML += sigma.map(s => `<th>${s}</th>`).join('');
 
             const body = document.getElementById('delta-body');
             body.innerHTML = '';
 
             const states = parseList(document.getElementById('inp-states').value);
+            const baseSigma = parseList(document.getElementById('inp-alpha').value);
             const table = document.getElementById('delta-table');
             const wrap = document.getElementById('delta-wrap');
 
-            if (states.length === 0 || sigma.length === 0) {
+            if (states.length === 0 || baseSigma.length === 0) {
                 table.style.display = 'none';
                 wrap.style.display = '';
                 return;
@@ -527,7 +543,7 @@
                 };
             });
 
-            simPath = [];
+            simEdges = [];
             document.getElementById('canvas-placeholder').style.display = 'none';
             renderDFA();
         }
@@ -575,47 +591,60 @@
             });
         }
 
-        function drawEdges(g, simPath) {
-            const states = parseList(document.getElementById('inp-states').value);
-            const sigma  = parseList(document.getElementById('inp-alpha').value);
-            const accept = parseList(document.getElementById('inp-accept').value);
-            const R = 28;
-
+        function parseDelta() {
             const delta = {};
             document.getElementById('delta-body').querySelectorAll('tr').forEach(tr => {
                 const state = tr.dataset.state;
                 delta[state] = {};
                 tr.querySelectorAll('td[data-sym]').forEach(td => {
-                    delta[state][td.dataset.sym] = td.querySelector('input').value.trim();
+                    const raw = td.querySelector('input').value.trim();
+                    if (mode === 'nfa') {
+                        delta[state][td.dataset.sym] = raw ? parseList(raw) : [];
+                    } else {
+                        delta[state][td.dataset.sym] = raw;
+                    }
                 });
             });
+            return delta;
+        }
+
+        function drawEdges(g, simEdges) {
+            const states = parseList(document.getElementById('inp-states').value);
+            const sigma  = getSymbols();
+            const accept = parseList(document.getElementById('inp-accept').value);
+            const R = 28;
+
+            const delta = parseDelta();
 
             const edgeMap = {};
             states.forEach(from => {
                 sigma.forEach(sym => {
-                    const to = delta[from][sym];
-                    if (!to) return;
-                    const key = `${from}→${to}`;
-                    if (!edgeMap[key]) edgeMap[key] = { from, to, labels: [] };
-                    edgeMap[key].labels.push(sym);
+                    var arr;
+                    if (mode === 'nfa') {
+                        arr = (delta[from] && delta[from][sym]) ? delta[from][sym] : [];
+                    } else {
+                        arr = (delta[from] && delta[from][sym]) ? [delta[from][sym]] : [];
+                    }
+                    var targets = arr;
+                    targets.forEach(to => {
+                        if (!to) return;
+                        const key = `${from}→${to}`;
+                        if (!edgeMap[key]) edgeMap[key] = { from, to, labels: [] };
+                        if (!edgeMap[key].labels.includes(sym)) edgeMap[key].labels.push(sym);
+                    });
                 });
             });
 
             Object.values(edgeMap).forEach(({ from, to, labels }) => {
                 const label = labels.join(', ');
 
-                // simPath에서 이 간선 색 결정
                 let color = '#3a3a5a';
-                if (simPath) {
-                    for (let i = 0; i < simPath.length - 1; i++) {
-                        if (simPath[i] === from && simPath[i+1] === to) {
-                            const lastState = simPath[simPath.length - 1];
-                            const isLast = i === simPath.length - 2;
-                            if (isLast) {
-                                color = accept.includes(lastState) ? '#3ecf8e' : '#f76a6a';
-                            } else {
-                                color = '#7c6af7';
-                            }
+                if (simEdges) {
+                    for (var ei = 0; ei < simEdges.length; ei++) {
+                        if (simEdges[ei].from === from && simEdges[ei].to === to) {
+                            color = simEdges[ei].final
+                                ? (simEdges[ei].accepted ? '#3ecf8e' : '#f76a6a')
+                                : '#7c6af7';
                         }
                     }
                 }
@@ -721,43 +750,151 @@
                 if (!dragging) return;
                 positions[state].x = e.clientX - ox;
                 positions[state].y = e.clientY - oy;
-                renderDFA(simPath.length > 0 ? simPath : null);
+                renderDFA(simEdges.length > 0 ? simEdges : null);
             });
             window.addEventListener('mouseup', () => { dragging = false; });
+        }
+
+        function epsilonClosure(states, delta) {
+            const closure = new Set(states);
+            const stack = Array.from(states);
+            while (stack.length > 0) {
+                const s = stack.pop();
+                const targets = (delta[s] && delta[s]['λ']) ? delta[s]['λ'] : [];
+                for (var i = 0; i < targets.length; i++) {
+                    if (!closure.has(targets[i])) {
+                        closure.add(targets[i]);
+                        stack.push(targets[i]);
+                    }
+                }
+            }
+            return closure;
         }
 
         function simulate(){
             const input = document.getElementById('inp-str').value;
             const start = document.getElementById('inp-start').value.trim();
             const accept = parseList(document.getElementById('inp-accept').value);
+            const delta = parseDelta();
 
-            const delta = {};
-            document.getElementById('delta-body').querySelectorAll('tr').forEach(tr => {
-                const state = tr.dataset.state;
-                delta[state] = {};
-                tr.querySelectorAll('td[data-sym]').forEach(td => {
-                    delta[state][td.dataset.sym] = td.querySelector('input').value.trim();
-                });
-            });
+            if (mode === 'nfa') {
+                simulateNFA(input, start, accept, delta);
+            } else {
+                simulateDFA(input, start, accept, delta);
+            }
+        }
 
+        function simulateDFA(input, start, accept, delta) {
+            const edges = [];
             let current = start;
-            simPath = [current];
-            for(const sym of input){
-                const nxt = delta[current][sym];
-                if(!nxt) break;
+
+            for (var si = 0; si < input.length; si++) {
+                const sym = input[si];
+                const nxt = (delta[current] && delta[current][sym]) ? delta[current][sym] : '';
+                if (!nxt) break;
+                edges.push({ from: current, to: nxt, final: false, accepted: false });
                 current = nxt;
-                simPath.push(current);
             }
 
             const isAccept = accept.includes(current);
+            if (edges.length > 0) {
+                edges[edges.length - 1].final = true;
+                edges[edges.length - 1].accepted = isAccept;
+            }
+
+            simEdges = edges;
+            const path = [start].concat(edges.map(e => e.to));
+
             const rb = document.getElementById('result-box');
             rb.className = isAccept ? 'accept' : 'reject';
             rb.innerHTML = `
                 <strong>${isAccept ? 'ACCEPT' : 'REJECT'}</strong>
-                <div class="result-path">경로: ${simPath.join(' → ')}</div>
+                <div class="result-path">경로: ${path.join(' → ')}</div>
             `;
 
-            renderDFA(simPath);
+            renderDFA(edges);
+        }
+
+        function simulateNFA(input, start, accept, delta) {
+            const initClosure = epsilonClosure([start], delta);
+            let currentStates = initClosure;
+            const edges = [];
+            const stepEdges = [];
+            const stepStates = [new Set(currentStates)];
+
+            // 시작 상태의 λ-closure 간선 기록
+            const epTargetsInit = (delta[start] && delta[start]['λ']) ? delta[start]['λ'] : [];
+            for (var ei = 0; ei < epTargetsInit.length; ei++) {
+                edges.push({ from: start, to: epTargetsInit[ei], final: false, accepted: false });
+            }
+
+            for (var si = 0; si < input.length; si++) {
+                const sym = input[si];
+                const nextRaw = new Set();
+                const thisStepEdges = [];
+
+                currentStates.forEach(function(s) {
+                    const targets = (delta[s] && delta[s][sym]) ? delta[s][sym] : [];
+                    for (var ti = 0; ti < targets.length; ti++) {
+                        const e = { from: s, to: targets[ti], final: false, accepted: false };
+                        edges.push(e);
+                        thisStepEdges.push(e);
+                        nextRaw.add(targets[ti]);
+                    }
+                });
+
+                const afterClosure = epsilonClosure(Array.from(nextRaw), delta);
+                nextRaw.forEach(function(s) {
+                    const stack = [s];
+                    const visited = new Set([s]);
+                    while (stack.length > 0) {
+                        const cur = stack.pop();
+                        const epTargets = (delta[cur] && delta[cur]['λ']) ? delta[cur]['λ'] : [];
+                        for (var ti = 0; ti < epTargets.length; ti++) {
+                            if (!visited.has(epTargets[ti])) {
+                                visited.add(epTargets[ti]);
+                                const e = { from: cur, to: epTargets[ti], final: false, accepted: false };
+                                edges.push(e);
+                                thisStepEdges.push(e);
+                                stack.push(epTargets[ti]);
+                            }
+                        }
+                    }
+                });
+
+                stepEdges.push(thisStepEdges);
+                currentStates = afterClosure;
+                stepStates.push(new Set(currentStates));
+            }
+
+            var isAccept = false;
+            currentStates.forEach(function(s) {
+                if (accept.includes(s)) isAccept = true;
+            });
+
+            // 마지막 스텝 간선들을 최종 색으로 표시
+            if (stepEdges.length > 0) {
+                const lastEdges = stepEdges[stepEdges.length - 1];
+                for (var li = 0; li < lastEdges.length; li++) {
+                    lastEdges[li].final = true;
+                    lastEdges[li].accepted = isAccept;
+                }
+            }
+
+            simEdges = edges;
+
+            const stateStr = stepStates.map(function(set) {
+                return '{' + Array.from(set).join(', ') + '}';
+            }).join(' → ');
+
+            const rb = document.getElementById('result-box');
+            rb.className = isAccept ? 'accept' : 'reject';
+            rb.innerHTML = `
+                <strong>${isAccept ? 'ACCEPT' : 'REJECT'}</strong>
+                <div class="result-path">상태 집합: ${stateStr}</div>
+            `;
+
+            renderDFA(edges);
         }
 
         (function() {
